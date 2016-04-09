@@ -30,6 +30,8 @@
 #include "CppUTest/PlatformSpecificFunctions.h"
 #include "CppUTest/SimpleMutex.h"
 
+#include <assert.h>
+
 #define UNKNOWN ((char*)("<unknown>"))
 
 SimpleStringBuffer::SimpleStringBuffer() :
@@ -273,11 +275,12 @@ bool MemoryLeakDetectorList::isInPeriod(MemoryLeakDetectorNode* node, MemLeakPer
 void MemoryLeakDetectorList::clearAllAccounting(MemLeakPeriod period)
 {
     MemoryLeakDetectorNode* cur = head_;
-    MemoryLeakDetectorNode* prev = 0;
+    MemoryLeakDetectorNode* prev = NULL;
 
     while (cur) {
         if (isInPeriod(cur, period)) {
             if (prev) {
+                assert(prev != cur->next_);
                 prev->next_ = cur->next_;
                 cur = prev;
             }
@@ -294,6 +297,8 @@ void MemoryLeakDetectorList::clearAllAccounting(MemLeakPeriod period)
 
 void MemoryLeakDetectorList::addNewNode(MemoryLeakDetectorNode* node)
 {
+    assert(head_ != node);
+
     node->next_ = head_;
     head_ = node;
 }
@@ -301,10 +306,11 @@ void MemoryLeakDetectorList::addNewNode(MemoryLeakDetectorNode* node)
 MemoryLeakDetectorNode* MemoryLeakDetectorList::removeNode(char* memory)
 {
     MemoryLeakDetectorNode* cur = head_;
-    MemoryLeakDetectorNode* prev = 0;
+    MemoryLeakDetectorNode* prev = NULL;
     while (cur) {
         if (cur->memory_ == memory) {
             if (prev) {
+                assert(prev != cur->next_);
                 prev->next_ = cur->next_;
                 return cur;
             }
@@ -351,6 +357,9 @@ int MemoryLeakDetectorList::getTotalLeaks(MemLeakPeriod period)
 {
     int total_leaks = 0;
     for (MemoryLeakDetectorNode* node = head_; node; node = node->next_) {
+        if(node->next_ == node)
+            break;
+
         if (isInPeriod(node, period)) total_leaks++;
     }
     return total_leaks;
@@ -595,7 +604,7 @@ void MemoryLeakDetector::removeMemoryLeakInformationWithoutCheckingOrDeallocatin
 
 void MemoryLeakDetector::deallocMemory(TestMemoryAllocator* allocator, void* memory, const char* file, int line, bool allocatNodesSeperately)
 {
-    if (memory == 0) return;
+    if (memory == NULL) return;
 
     MemoryLeakDetectorNode* node = memoryTable_.removeNode((char*) memory);
     if (node == NULL) {
